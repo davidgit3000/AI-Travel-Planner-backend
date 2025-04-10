@@ -1,4 +1,4 @@
-# AI Travel Planner Backend
+# AI Travel Planner (backend)
 
 A FastAPI-based backend service for the AI Travel Planner application that helps users create personalized travel itineraries.
 
