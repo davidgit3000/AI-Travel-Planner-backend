@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routes import user, trip, openai_route
+from routes import user, trip, openai_route, webhook
 import os
 
 app = FastAPI(title="AI Travel Planner API")
@@ -21,6 +21,7 @@ app.add_middleware(
 app.include_router(user.router)
 app.include_router(trip.router)
 app.include_router(openai_route.router)
+app.include_router(webhook.router)
 
 @app.get("/")
 async def root():
