@@ -29,7 +29,7 @@ def create_travel_prompt(request: TravelRequest) -> str:
         location_prompt = f"provide detailed travel information for {basic_info.specificPlace}"
     else:
         location_suffix = f" located in {basic_info.destination}" if basic_info.destination else ""
-        location_prompt = f"suggest 5 to 6 travel destinations{location_suffix}"
+        location_prompt = f"suggest 2 to 3 travel destinations{location_suffix}"
     
     # Build basic information section
     destination_type = 'Specific Place' if basic_info.isSpecificPlace else 'Country'
@@ -51,7 +51,7 @@ def create_travel_prompt(request: TravelRequest) -> str:
     activities_section = f"Activities:\n{', '.join(request.activities)}"
 
     # Build destination count text
-    dest_count = "exactly 1 destination" if basic_info.isSpecificPlace else "5-6 destinations"
+    dest_count = "exactly 1 destination" if basic_info.isSpecificPlace else "2-3 destinations"
     highlights_count = "7-10 specific highlights" if basic_info.isSpecificPlace else "5-7 highlights"
 
     # Combine all sections
