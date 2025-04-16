@@ -1,9 +1,18 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 from typing import List, Optional
 
 class DestinationLocation(BaseModel):
     city: str
-    country: str
+    state: Optional[str] = None
+    country: Optional[str] = None
+
+    @model_validator(mode='after')
+    def check_location_fields(self) -> 'DestinationLocation':
+        if not self.state and not self.country:
+            raise ValueError('Either state or country must be provided')
+        if self.state and self.country:
+            raise ValueError('Cannot provide both state and country')
+        return self
 
 class Destination(BaseModel):
     destination: DestinationLocation

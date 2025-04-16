@@ -24,9 +24,24 @@ myOpenAI = OpenAI(api_key=api_key)
 def create_travel_prompt(request: TravelRequest) -> str:
     basic_info = request.basicInfo
     
+    # List of US states for checking
+    us_states = [
+        'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut',
+        'Delaware', 'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa',
+        'Kansas', 'Kentucky', 'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan',
+        'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire',
+        'New Jersey', 'New Mexico', 'New York', 'North Carolina', 'North Dakota', 'Ohio',
+        'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina', 'South Dakota',
+        'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia', 'Washington', 'West Virginia',
+        'Wisconsin', 'Wyoming'
+    ]
+    is_us_state = basic_info.specificPlace in us_states
     # Determine the initial prompt based on whether it's a specific place
     if basic_info.isSpecificPlace:
-        location_prompt = f"provide detailed travel information for {basic_info.specificPlace}"
+        if is_us_state:
+            location_prompt = f"suggest 2-3 top travel destinations in {basic_info.specificPlace}"
+        else:
+            location_prompt = f"provide detailed travel information for {basic_info.specificPlace}"
     else:
         location_suffix = f" located in {basic_info.destination}" if basic_info.destination else ""
         location_prompt = f"suggest 2 to 3 travel destinations{location_suffix}"
@@ -51,9 +66,14 @@ def create_travel_prompt(request: TravelRequest) -> str:
     activities_section = f"Activities:\n{', '.join(request.activities)}"
 
     # Build destination count text
-    dest_count = "exactly 1 destination" if basic_info.isSpecificPlace else "2-3 destinations"
+    if basic_info.isSpecificPlace:
+        dest_count = "2-3 destinations" if is_us_state else "exactly 1 destination"
+    else:
+        dest_count = "2-3 destinations"
     highlights_count = "7-10 specific highlights" if basic_info.isSpecificPlace else "5-7 highlights"
 
+    destination = '{"city": string, "state": string}' if is_us_state else '{"city": string, "country": string}'
+    
     # Combine all sections
     prompt = f"""As an AI travel planner, {location_prompt}:
 
@@ -66,9 +86,9 @@ def create_travel_prompt(request: TravelRequest) -> str:
 {activities_section}
 
 For each destination, provide:
-1. City and Country name
+1. Location details (format depends on destination type)
 2. A brief description (2-3 sentences) that includes:
-   - The location (state/province/region and geographic position in the country)
+   - The location's geographic position
    - Why it matches their preferences
 3. 5-7 specific trip highlights or recommended activities
 
@@ -76,7 +96,7 @@ Format the response as a JSON object with the following structure:
 {{
   "destinations": [  // Will contain {dest_count}]
     {{
-      "destination": {{ "city": string, "country": string }},  // For specific places, use the exact location provided
+      "destination": {destination},  // Format depends on location type
       "description": string,  // Include detailed location information
       "highlights": string[]  // {highlights_count}
     }}
@@ -86,9 +106,10 @@ Format the response as a JSON object with the following structure:
 Ensure the suggestions are highly personalized based on all preferences and provide specific, actionable recommendations."""
     return prompt
 
-async def generate_destination_image(city: str, country: str) -> str:
+async def generate_destination_image(city: str, location: str, is_us_state: bool = False) -> str:
     try:
-        prompt = f"A beautiful, professional travel photograph of {city}, {country}. Show iconic landmarks or cityscapes that capture the essence of the destination. Style: high-quality travel photography, 4K, realistic."
+        location_type = "state" if is_us_state else "country"
+        prompt = f"A beautiful, professional travel photograph of {city}, {location}. Show iconic landmarks or cityscapes that capture the essence of the destination. Style: high-quality travel photography, 4K, realistic."
         
         response = myOpenAI.images.generate(
             model="dall-e-3",
@@ -149,9 +170,14 @@ async def generate_recommendations(request: TravelRequest) -> Dict[str, Any]:
             if not all(key in dest for key in ["destination", "description", "highlights"]):
                 raise HTTPException(status_code=500, detail="Invalid destination format in response")
             
+            # Check if the destination has a state (US location) or country
+            is_us_location = "state" in dest["destination"]
+            location = dest["destination"].get("state") or dest["destination"].get("country")
+            
             image_url = await generate_destination_image(
                 dest["destination"]["city"],
-                dest["destination"]["country"]
+                location,
+                is_us_location
             )
             
             destinations_with_images.append({
