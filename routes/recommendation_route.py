@@ -6,6 +6,7 @@ from typing import Dict, Any, List
 from datetime import datetime
 from models.trip import TripCreate as Trip
 from dotenv import load_dotenv
+import random
 
 # Load environment variables from .env file
 load_dotenv()
@@ -37,13 +38,25 @@ def create_recommendation_prompt(past_trips: List[Trip]) -> str:
         f"- {dest} (visited {count} times)" 
         for dest, count in destination_counts.items()
     ])
+    
+     # Add random variation instructions
+    random_style = random.choice([
+        "be bold and suggest a very different vibe",
+        "be slightly adventurous and suggest a hidden gem",
+        "think globally and suggest a destination far from past trips",
+        "suggest a location with a similar culture but in a different country",
+        "recommend a famous underrated travel spot",
+        "favor a place that tourists often miss",
+        "think outside the box and suggest lesser-known destinations",
+        "surprise the user with an unexpected but wonderful location"
+    ])
 
     prompt = f"""As an AI travel planner, analyze this user's travel history and recommend a new destination:
 
 Travel History:
 {trip_history}
 
-Today's date is {today}. Based on these past trips, suggest a NEW and DIFFERENT destination that:
+Today's date is {today}. Based on these past trips, {random_style}. Also, suggest a NEW and DIFFERENT destination that:
 1. Has some similarities to their past preferences but offers unique experiences
 2. Is NOT one of their previously visited places
 3. Could be in a different region or country while maintaining similar interests
@@ -142,6 +155,10 @@ Provide your recommendation in this JSON format:
 async def suggest_trip(user_id: str, past_trips: List[Trip]) -> Dict[str, Any]:
     try:
         prompt = create_recommendation_prompt(past_trips)
+        if not prompt:
+            print("Failed to generate prompt. No prompt generated.")
+            raise HTTPException(status_code=500, detail="Failed to generate prompt")
+        print("--- OpenAI prompt ---\n", prompt)
         
         completion = myOpenAI.chat.completions.create(
             messages=[
@@ -160,8 +177,10 @@ async def suggest_trip(user_id: str, past_trips: List[Trip]) -> Dict[str, Any]:
 
         content = completion.choices[0].message.content
         if not content:
+            print("Failed to generate prompt. No content in response.")
             raise HTTPException(status_code=500, detail="No content in response")
-
+        print(content)
+        
         # Parse and validate the JSON response
         try:
             response_data = json.loads(content)
