@@ -152,15 +152,28 @@ async def generate_destination_image(city: str, location: str, is_us_state: bool
                     image_data = part.inline_data.data
 
                     # Handle different image data formats
+                    import base64
                     if isinstance(image_data, bytes):
-                        image_data = image_data.decode('utf-8')
+                        # If it's already bytes, encode it directly to base64
+                        try:
+                            image_data = base64.b64encode(image_data).decode('ascii')
+                        except Exception as e:
+                            print(f"Failed to encode bytes to base64: {str(e)}")
+                            retry_count += 1
+                            continue
                     elif isinstance(image_data, str):
-                        # Remove any b' prefix and ' suffix if present
-                        if image_data.startswith("b'") and image_data.endswith("'"):
-                            image_data = image_data[2:-1]
-                        # Remove any double encoding
-                        if image_data.startswith("'b'") and image_data.endswith("''"):
-                            image_data = image_data[3:-2]
+                        # Try to parse the string as base64
+                        try:
+                            # First, try to decode it as base64 to validate it
+                            base64.b64decode(image_data)
+                        except:
+                            # If it's not valid base64, it might be a string representation of bytes
+                            # Remove any b' prefix and ' suffix if present
+                            if image_data.startswith("b'") and image_data.endswith("'"):
+                                image_data = image_data[2:-1]
+                            # Remove any double encoding
+                            if image_data.startswith("'b'") and image_data.endswith("''"):
+                                image_data = image_data[3:-2]
                     
                     # Verify the base64 data is valid
                     try:
