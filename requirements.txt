@@ -10,3 +10,5 @@ openai==1.55.3
 httpx
 h2==4.1.0
 google-generativeai==0.3.2
+google-api-core>=2.17.1
+google-auth>=2.27.0
