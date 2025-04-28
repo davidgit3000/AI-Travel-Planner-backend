@@ -9,3 +9,4 @@ psycopg2-binary==2.9.9
 openai==1.55.3
 httpx
 h2==4.1.0
+google-generativeai==0.3.2
