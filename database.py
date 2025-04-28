@@ -66,7 +66,7 @@ def init_db():
                 endDate DATE NOT NULL,
                 tripHighlights TEXT,
                 linkPdf VARCHAR(255),
-                imgLink VARCHAR(500)
+                imgLink TEXT
             )
         """)
         

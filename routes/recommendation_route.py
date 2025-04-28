@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException
-from openai import OpenAI
+from google import genai
+from google.genai import types
 import os
 import json
 from typing import Dict, Any, List
@@ -16,12 +17,12 @@ router = APIRouter(
     tags=["recommendations"]
 )
 
-# Initialize OpenAI client with API key
-api_key = os.getenv("OPENAI_API_KEY")
+# Initialize Gemini client with API key
+api_key = os.getenv("GEMINI_API_KEY")
 if not api_key:
-    raise ValueError("OPENAI_API_KEY environment variable is not set")
+    raise ValueError("GEMINI_API_KEY environment variable is not set")
 
-myOpenAI = OpenAI(api_key=api_key)
+client = genai.Client(api_key=api_key)
 
 def create_recommendation_prompt(past_trips: List[Trip]) -> str:
     # Get today's date
@@ -158,29 +159,36 @@ async def suggest_trip(user_id: str, past_trips: List[Trip]) -> Dict[str, Any]:
         if not prompt:
             print("Failed to generate prompt. No prompt generated.")
             raise HTTPException(status_code=500, detail="Failed to generate prompt")
-        print("--- OpenAI prompt ---\n", prompt)
-        
-        completion = myOpenAI.chat.completions.create(
-            messages=[
-                {
-                    "role": "system",
-                    "content": f"You are a creative travel planning assistant that suggests diverse and unique destinations. While considering the user's preferences from their travel history, always recommend somewhere NEW and DIFFERENT from their past trips. Today's date is {datetime.now().strftime('%Y-%m-%d')}. Always plan trips to start at least one week in the future from today's date.",
-                },
-                {"role": "user", "content": prompt},
-            ],
-            model="gpt-4-turbo-preview",
-            response_format={"type": "json_object"},
-            temperature=1.0,  # Maximum creativity
-            presence_penalty=0.9,  # Strongly encourage mentioning new topics
-            max_tokens=1000,
+        print("--- Gemini prompt ---\n", prompt)
+
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                temperature=0.9,
+                top_p=0.8,
+                top_k=40
+            )
         )
 
-        content = completion.choices[0].message.content
-        if not content:
+        if not response or not response.candidates or not response.candidates[0].content:
             print("Failed to generate prompt. No content in response.")
             raise HTTPException(status_code=500, detail="No content in response")
-        print(content)
+
+        content = response.candidates[0].content.parts[0].text
+        if not content:
+            print("Failed to generate prompt. Empty content in response.")
+            raise HTTPException(status_code=500, detail="Empty content in response")
         
+        # Clean up the content to ensure it's valid JSON
+        content = content.strip()
+        if content.startswith('```json'):
+            content = content[7:]
+        if content.endswith('```'):
+            content = content[:-3]
+        content = content.strip()
+        print(content)
+
         # Parse and validate the JSON response
         try:
             response_data = json.loads(content)
